@@ -178,11 +178,10 @@ int main(int argc, char* argv[])
         thrust::device_vector<Alignment> d_chr(iter, d_alignments.end());
         d_alignments.erase(iter, d_alignments.end());
 
+        log_info(stderr, "Calculating hotspots for chr%d\n", i+1);
         compute_hotspots(d_chr, hotspots, low_int, high_int, int_increment,
             genome_size, total_tag_count, min_SD, use_fuzzy, fuzzy_seed);
-        log_info(stderr, "  Done for chr%d, calculated tags - %lu\n", i+1, d_chr.size());
     }
-    log_info(stderr, "Done identifying hotspots\n");
     timer.stop();
     log_info(stderr, "Time taken - %um:%us\n",
         uint32(timer.seconds()/60),

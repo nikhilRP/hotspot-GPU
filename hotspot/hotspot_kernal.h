@@ -94,6 +94,19 @@ void compute_hotspots(V& d_chr, T& hotspots, int int_low, int int_high, int int_
 
     double disc     = 0.0;
     int wincount    = 0;
+    int n           = d_chr.size();
+
+    //random number generation code
+    thrust::device_vector<double> random_vec(n);
+    if(use_fuzzy)
+    {
+        thrust::transform(
+            thrust::make_counting_iterator(0),
+            thrust::make_counting_iterator(n),
+            random_vec.begin(),
+            gen_rand()
+        );
+    }
 
     for (int winsize = int_low; winsize <= int_high; winsize += int_inc, wincount++ )
     {
@@ -102,24 +115,15 @@ void compute_hotspots(V& d_chr, T& hotspots, int int_low, int int_high, int int_
         double sd = std::sqrt(prob*(1-prob)*totaltagcount);
         double detectThresh = 1 + mean + num_sd * sd;
 
-        int n = d_chr.size();
         int gridDim = nvbio::round( (float) n/256 ) + 1;
         int w_size = winsize/2;
 
-        //random number generation code
-        thrust::device_vector<double> random_vec(n);
-        if(use_fuzzy)
-        {
-            thrust::transform(
-                thrust::make_counting_iterator(0),
-                thrust::make_counting_iterator(n),
-                random_vec.begin(),
-                gen_rand()
-            );
-        }
         Alignment* d_chr_ptr = thrust::raw_pointer_cast(&d_chr[0]);
         double* random_vec_ptr = thrust::raw_pointer_cast(&random_vec[0]);
         compute_hs<<<gridDim, 256, 1>>> (d_chr_ptr, w_size, n, use_fuzzy,
             detectThresh, random_vec_ptr, totaltagcount, prob, mean, sd);
     }
+    log_info(stderr, "  computed for tags - %lu\n", n);
+    random_vec.clear();
+    random_vec.shrink_to_fit();
 }
