@@ -81,7 +81,6 @@ __global__ void compute_hs(Alignment *aln, int w_size, int n, bool use_fuzzy,
         if(contained > thresh)
         {
             double cur_SD = (contained - 1 - mean) / sd;
-            printf("%d\n", tid);
         }
     }
 }
