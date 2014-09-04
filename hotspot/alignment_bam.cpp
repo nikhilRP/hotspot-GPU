@@ -1,21 +1,11 @@
-/*
- * nvbio
- * Copyright (C) 2012-2014, NVIDIA Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+/*****************************************************************************
+  alignment_bam.cpp
 
+  (c) 2014 - Nikhil R Podduturi, J. Seth Strattan
+  J. Michael Cherry Lab, Department of Genetics, Stanford University School of Medicine
+
+  Licensed under the GNU General Public License 2.0 license.
+******************************************************************************/
 #include "alignment.h"
 
 #include <contrib/bamtools/BamReader.h>
@@ -35,12 +25,7 @@ struct BAMAlignmentStream : public AlignmentStream
         log_verbose(stderr, "opening BAM file \"%s\"... done\n", file_name);
     }
 
-    // return if the stream is ok
-    //
-    bool is_ok() { return true; } // TODO: add a mechanism to bamtools to know whether the file opened correctly
-
-    // get the next batch
-    //
+    bool is_ok() { return true; }
     uint32 read(thrust::host_vector<Alignment> *batch)
     {
         log_info(stderr, "Loading bam file started\n");
@@ -50,7 +35,6 @@ struct BAMAlignmentStream : public AlignmentStream
         {
             Alignment aln;
 
-            aln.read_id    =   uint32( crcCalc( bam_aln.Name.c_str(), uint32(bam_aln.Name.length()) ) );
             aln.read_len   =   bam_aln.Length;
             aln.pos        =   bam_aln.Position;
             aln.ref_id     =   bam_aln.RefID;

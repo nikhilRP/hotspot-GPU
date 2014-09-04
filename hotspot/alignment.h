@@ -1,20 +1,11 @@
-/*
- * nvbio
- * Copyright (C) 2012-2014, NVIDIA Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+/*****************************************************************************
+  alignment.h
+
+  (c) 2014 - Nikhil R Podduturi, J. Seth Strattan
+  J. Michael Cherry Lab, Department of Genetics, Stanford University School of Medicine
+
+  Licensed under the GNU General Public License 2.0 license.
+******************************************************************************/
 
 #pragma once
 
@@ -28,15 +19,13 @@ namespace hotspot {
 struct Alignment
 {
     Alignment() :
-        read_id( uint32(-1) ),
         read_len( 0 ),
         pos( 0 ),
-        ref_id( uint32(-1) ) {}
+        ref_id( uint8(-1) ) {}
 
-    uint32 read_id;
     uint32 read_len;
     uint32 pos;
-    uint32 ref_id;
+    uint8 ref_id;
 };
 
 struct AlignmentStream
@@ -49,7 +38,7 @@ struct AlignmentStream
     ///
     virtual bool is_ok() { return false; }
 
-    /// get the next batch
+    /// read the data from bam file
     ///
     virtual uint32 read(thrust::host_vector<Alignment> *batch) { return 0; }
 };

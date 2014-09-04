@@ -17,13 +17,9 @@
 #include <nvbio/basic/timer.h>
 #include <nvbio/basic/shared_pointer.h>
 #include <cuda_runtime_api.h>
-
-#include <thrust/host_vector.h>
-#include <thrust/device_vector.h>
 #include <thrust/partition.h>
-#include <thrust/execution_policy.h>
 
-#include "alignment.h"
+#include "hotspot_kernal.h"
 
 void crcInit();
 
@@ -58,6 +54,15 @@ int main(int argc, char* argv[])
     const char* density_file    =   NULL;
     const char* output_file     =   NULL;
 
+    // hotspot defaults for now
+    int low_int         = 250;
+    int high_int        = 1000;
+    int int_increment   = 100;
+    int fuzzy_seed      = 1;
+    double genome_size  = 2.55E9;
+    double min_SD       = 3.0;
+    bool use_fuzzy      = false;
+
     int arg = 1;
     while (arg < argc)
     {
@@ -79,6 +84,33 @@ int main(int argc, char* argv[])
         else if (strcmp( argv[arg], "-o" ) == 0)
         {
             output_file = argv[++arg];
+            ++arg;
+        }
+        else if (strcmp( argv[arg], "-range") == 0)
+        {
+            low_int         = atoi(argv[arg + 1]);
+            high_int        = atoi(argv[arg + 2]);
+            int_increment   = atoi(argv[arg + 3]);
+            arg = arg + 3;
+        }
+        else if (strcmp( argv[arg], "-bckgnmsize") == 0)
+        {
+            genome_size = atof(argv[++arg]);
+            ++arg;
+        }
+        else if (strcmp( argv[arg], "-minsd") == 0)
+        {
+            min_SD = atof(argv[++arg]);
+            ++arg;
+        }
+        else if (strcmp( argv[arg], "-fuzzy") == 0)
+        {
+            use_fuzzy = true;
+            ++arg;
+        }
+        else if (strcmp( argv[arg], "-fuzzy-seed") == 0)
+        {
+            fuzzy_seed = atoi(argv[++arg]);
             ++arg;
         }
         else
@@ -128,11 +160,13 @@ int main(int argc, char* argv[])
     }
 
     thrust::host_vector<Alignment> h_alignments;
-    const uint32 count = library_stream->read( &h_alignments );
+    const uint32 total_tag_count = library_stream->read( &h_alignments );
 
-    log_info(stderr, "Total tags found = %d\n", count);
-
+    log_info(stderr, "Total tags found = %d\n", total_tag_count);
+    log_info(stderr, "Identifying hotspots started\n");
     thrust::device_vector<Alignment> d_alignments( h_alignments );
+
+    thrust::host_vector<Hotspot> hotspots;
     for(int i=0; i<24; ++i)
     {
         thrust::device_vector<Alignment>::iterator iter = thrust::stable_partition(
@@ -143,8 +177,15 @@ int main(int argc, char* argv[])
         );
         thrust::device_vector<Alignment> d_chr(iter, d_alignments.end());
         d_alignments.erase(iter, d_alignments.end());
-        printf("%d\n", d_chr.size());
+
+        compute_hotspots(d_chr, hotspots, low_int, high_int, int_increment,
+            genome_size, total_tag_count, min_SD, use_fuzzy, fuzzy_seed);
+        log_info(stderr, "  Done for chr%d, calculated tags - %lu\n", i+1, d_chr.size());
     }
+    log_info(stderr, "Done identifying hotspots\n");
     timer.stop();
+    log_info(stderr, "Time taken - %um:%us\n",
+        uint32(timer.seconds()/60),
+        uint32(timer.seconds())%60);
     return 0;
 }

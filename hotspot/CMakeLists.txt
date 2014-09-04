@@ -1,9 +1,11 @@
 nvbio_module(hotspot)
 
 addsources(
+    hotspot_kernal.h
     alignment.h
     alignment.cpp
     alignment_bam.cpp
+    hotspot.h
     hotspot.cu
 )
 
