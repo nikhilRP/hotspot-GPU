@@ -181,6 +181,10 @@ int main(int argc, char* argv[])
         log_info(stderr, "Calculating hotspots for chr%d\n", i+1);
         compute_hotspots(d_chr, hotspots, low_int, high_int, int_increment,
             genome_size, total_tag_count, min_SD, use_fuzzy, fuzzy_seed);
+
+        // Clear the memory
+        d_chr.clear();
+        d_chr.shrink_to_fit();
     }
     timer.stop();
     log_info(stderr, "Time taken - %um:%us\n",
