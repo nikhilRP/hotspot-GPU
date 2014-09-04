@@ -179,9 +179,15 @@ int main(int argc, char* argv[])
         d_alignments.erase(iter, d_alignments.end());
 
         log_info(stderr, "Calculating hotspots for chr%d\n", i+1);
-        compute_hotspots(d_chr, hotspots, low_int, high_int, int_increment,
-            genome_size, total_tag_count, min_SD, use_fuzzy, fuzzy_seed);
-
+        if (d_chr.size() != 0)
+        {
+            compute_hotspots(d_chr, hotspots, low_int, high_int, int_increment,
+                genome_size, total_tag_count, min_SD, use_fuzzy, fuzzy_seed);
+        }
+        else
+        {
+            log_info(stderr, "  No tags found in chr%d\n", i+1);
+        }
         // Clear the memory
         d_chr.clear();
         d_chr.shrink_to_fit();
