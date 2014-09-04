@@ -40,8 +40,8 @@ struct gen_rand
     }
 };
 
-__global__ void compute_hs(Alignment *aln, int w_size, int n,
-    bool use_fuzzy, int fuzzy_seed, double thresh, double *random)
+__global__ void compute_hs(Alignment *aln, int w_size, int n, bool use_fuzzy,
+    double thresh, double *random, int count, double prob, double mean, double sd)
 {
     int tid = threadIdx.x+blockIdx.x*blockDim.x;
     if( tid < n )
@@ -75,6 +75,13 @@ __global__ void compute_hs(Alignment *aln, int w_size, int n,
             {
                 thresh = thresh + (random[tid] - 0.5);
             }
+        }
+        double cont_frac = contained/(double)count;
+        double diff = fabs(cont_frac - prob);
+        if(contained > thresh)
+        {
+            double cur_SD = (contained - 1 - mean) / sd;
+            printf("%d\n", tid);
         }
     }
 }
@@ -114,6 +121,6 @@ void compute_hotspots(V& d_chr, T& hotspots, int int_low, int int_high, int int_
         Alignment* d_chr_ptr = thrust::raw_pointer_cast(&d_chr[0]);
         double* random_vec_ptr = thrust::raw_pointer_cast(&random_vec[0]);
         compute_hs<<<gridDim, 256, 1>>> (d_chr_ptr, w_size, n, use_fuzzy,
-            fuzzy_seed, detectThresh, random_vec_ptr);
+            detectThresh, random_vec_ptr, totaltagcount, prob, mean, sd);
     }
 }
