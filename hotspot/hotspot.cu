@@ -166,7 +166,6 @@ int main(int argc, char* argv[])
     log_info(stderr, "Identifying hotspots started\n");
     thrust::device_vector<Alignment> d_alignments( h_alignments );
 
-    thrust::host_vector<Hotspot> hotspots;
     for(int i=0; i<24; ++i)
     {
         thrust::device_vector<Alignment>::iterator iter = thrust::stable_partition(
@@ -177,6 +176,7 @@ int main(int argc, char* argv[])
         );
         thrust::device_vector<Alignment> d_chr(iter, d_alignments.end());
         d_alignments.erase(iter, d_alignments.end());
+        thrust::device_vector<Hotspot> hotspots(d_chr.size());
 
         log_info(stderr, "Calculating hotspots for chr%d\n", i+1);
         if (d_chr.size() != 0)
@@ -188,6 +188,7 @@ int main(int argc, char* argv[])
         {
             log_info(stderr, "  No tags found in chr%d\n", i+1);
         }
+
         // Clear the memory
         d_chr.clear();
         d_chr.shrink_to_fit();

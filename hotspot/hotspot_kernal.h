@@ -18,6 +18,16 @@
 using namespace nvbio;
 using namespace hotspot;
 
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true)
+{
+    if (code != cudaSuccess)
+    {
+        fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        if (abort) exit(code);
+    }
+}
+
 struct sort_aln
 {
     __host__ __device__
@@ -40,7 +50,16 @@ struct gen_rand
     }
 };
 
-__global__ void compute_hs(Alignment *aln, int w_size, int n, bool use_fuzzy,
+struct avg_pos
+{
+    __host__ __device__
+    void operator() (Hotspot x)
+    {
+        x.weightedAvgSD /= x.densCount;
+    }
+};
+
+__global__ void compute_hs(Alignment *aln, Hotspot *hotspot, int w_size, int n, bool use_fuzzy,
     double thresh, double *random, int count, double prob, double mean, double sd)
 {
     int tid = threadIdx.x+blockIdx.x*blockDim.x;
@@ -80,7 +99,11 @@ __global__ void compute_hs(Alignment *aln, int w_size, int n, bool use_fuzzy,
         double diff = fabs(cont_frac - prob);
         if(contained > thresh)
         {
-            double cur_SD = (contained - 1 - mean) / sd;
+            double curr_SD = (contained - 1 - mean) / sd;
+            hotspot[tid].densCount += 1;
+            hotspot[tid].weightedAvgSD += curr_SD;
+            hotspot[tid].averagePos = (int) (pos_avg + 0.5);
+            hotspot[tid].maxWindow = w_size;
         }
     }
 }
@@ -90,13 +113,10 @@ void compute_hotspots(V& d_chr, T& hotspots, int int_low, int int_high, int int_
     float genome_size, int totaltagcount, int num_sd, bool use_fuzzy, int fuzzy_seed)
 {
     thrust::sort(thrust::device, d_chr.begin(), d_chr.end(), sort_aln());
-    thrust::host_vector<Alignment> h_chr = d_chr;
 
-    double disc     = 0.0;
     int wincount    = 0;
     int n           = d_chr.size();
 
-    //random number generation code
     thrust::device_vector<double> random_vec(n);
     if(use_fuzzy)
     {
@@ -108,7 +128,11 @@ void compute_hotspots(V& d_chr, T& hotspots, int int_low, int int_high, int int_
         );
     }
 
-    for (int winsize = int_low; winsize <= int_high; winsize += int_inc, wincount++ )
+    Alignment* d_chr_ptr = thrust::raw_pointer_cast(&d_chr[0]);
+    Hotspot* hotspots_ptr = thrust::raw_pointer_cast(&hotspots[0]);
+    double* random_vec_ptr = thrust::raw_pointer_cast(&random_vec[0]);
+
+    for (int winsize = int_low; winsize <= int_high; winsize += int_inc, wincount++)
     {
         double prob = winsize / genome_size;
         double mean = prob * totaltagcount;
@@ -118,11 +142,13 @@ void compute_hotspots(V& d_chr, T& hotspots, int int_low, int int_high, int int_
         int gridDim = nvbio::round( (float) n/256 ) + 1;
         int w_size = winsize/2;
 
-        Alignment* d_chr_ptr = thrust::raw_pointer_cast(&d_chr[0]);
-        double* random_vec_ptr = thrust::raw_pointer_cast(&random_vec[0]);
-        compute_hs<<<gridDim, 256, 1>>> (d_chr_ptr, w_size, n, use_fuzzy,
+        compute_hs<<<gridDim, 256, 1>>> (d_chr_ptr, hotspots_ptr, w_size, n, use_fuzzy,
             detectThresh, random_vec_ptr, totaltagcount, prob, mean, sd);
+        gpuErrchk( cudaPeekAtLastError() );
+        gpuErrchk( cudaDeviceSynchronize() );
     }
+    thrust::for_each(thrust::device, hotspots.begin(),
+        hotspots.end(), avg_pos());
     log_info(stderr, "  computed for tags - %lu\n", n);
     random_vec.clear();
     random_vec.shrink_to_fit();
