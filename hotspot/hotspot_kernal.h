@@ -88,12 +88,9 @@ __global__ void compute_hs(Alignment *aln, Hotspot *hotspot, int w_size, int n, 
             }
         }
         pos_avg = pos_avg/contained;
-        if (use_fuzzy)
+        if (use_fuzzy && fabs(contained - thresh) <= 0.5)
         {
-            if (fabs(contained - thresh) <= 0.5)
-            {
-                thresh = thresh + (random[tid] - 0.5);
-            }
+            thresh = thresh + (random[tid] - 0.5);
         }
         double cont_frac = contained/(double)count;
         double diff = fabs(cont_frac - prob);
@@ -103,8 +100,17 @@ __global__ void compute_hs(Alignment *aln, Hotspot *hotspot, int w_size, int n, 
             hotspot[tid].densCount += 1;
             hotspot[tid].weightedAvgSD += curr_SD;
             hotspot[tid].averagePos = (int) (pos_avg + 0.5);
-            hotspot[tid].maxWindow = w_size;
+            hotspot[tid].maxWindow = w_size*2;
         }
+    }
+}
+
+__global__ void filter_hs(Hotspot *hs, Hotspot *f_hs, int n)
+{
+    int tid = threadIdx.x+blockIdx.x*blockDim.x;
+    if (tid < n)
+    {
+        printf("Nikhil\n");
     }
 }
 
@@ -144,12 +150,18 @@ void compute_hotspots(V& d_chr, T& hotspots, int int_low, int int_high, int int_
 
         compute_hs<<<gridDim, 256, 1>>> (d_chr_ptr, hotspots_ptr, w_size, n, use_fuzzy,
             detectThresh, random_vec_ptr, totaltagcount, prob, mean, sd);
-        gpuErrchk( cudaPeekAtLastError() );
-        gpuErrchk( cudaDeviceSynchronize() );
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
     }
     thrust::for_each(thrust::device, hotspots.begin(),
         hotspots.end(), avg_pos());
-    log_info(stderr, "  computed for tags - %lu\n", n);
+    log_info(stderr, "  Done computing hotspots\n");
     random_vec.clear();
     random_vec.shrink_to_fit();
+}
+
+template<typename V>
+void filter_hotspots(V& hotspots, V& filtered_hotspots)
+{
+
 }
